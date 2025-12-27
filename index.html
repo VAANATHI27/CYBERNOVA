@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Nova - Simulated Security Dashboard</title>
+    <style>
+        /* Dark Mode & Futuristic Theme */
+        body {
+            font-family: 'Courier New', monospace; /* Cyberpunk font */
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff41; /* Neon green border */
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            text-align: center;
+        }
+        h1 {
+            color: #00ff41;
+            text-shadow: 0 0 10px #00ff41;
+            margin-bottom: 20px;
+        }
+        /* Login Form */
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input {
+            padding: 10px;
+            border: 1px solid #333;
+            background: #222;
+            color: #e0e0e0;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .login-btn {
+            background: #00ff41;
+            color: #000;
+        }
+        .login-btn:hover {
+            box-shadow: 0 0 10px #00ff41;
+        }
+        /* Status Buttons */
+        .status-btn {
+            padding: 20px;
+            font-size: 1.2em;
+            margin: 20px 0;
+            border-radius: 10px;
+            width: 100%;
+        }
+        .secure {
+            background: #00ff41;
+            color: #000;
+            box-shadow: 0 0 20px #00ff41;
+        }
+        .breach {
+            background: #ff0040;
+            color: #fff;
+            box-shadow: 0 0 20px #ff0040;
+        }
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #ff0040;
+            max-width: 500px;
+            width: 90%;
+            text-align: left;
+        }
+        .modal h2 {
+            color: #ff0040;
+        }
+        .close {
+            float: right;
+            cursor: pointer;
+            font-size: 1.5em;
+        }
+        /* Checklist */
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+        .checklist input {
+            margin-right: 10px;
+        }
+        /* Success Animation */
+        .success {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 20px #00ff41; }
+            50% { box-shadow: 0 0 40px #00ff41; }
+            100% { box-shadow: 0 0 20px #00ff41; }
+        }
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            .status-btn {
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Cyber Nova</h1>
+        <div id="login-section">
+            <h2>Login to Your Account</h2>
+            <form class="login-form" id="login-form">
+                <input type="text" placeholder="Username" required>
+                <input type="password" placeholder="Password" required>
+                <button type="submit" class="login-btn">Login</button>
+            </form>
+        </div>
+        <div id="dashboard" style="display: none;">
+            <h2>Security Status</h2>
+            <button id="status-btn" class="status-btn"></button>
+        </div>
+    </div>
+
+    <!-- Recovery Modal -->
+    <div id="recovery-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Security Breach Detected</h2>
+            <p>Your account has been hacked. Do you want to recover your account?</p>
+            <button onclick="startRecovery()">Yes, Recover</button>
+            <button onclick="closeModal()">No</button>
+        </div>
+    </div>
+
+    <!-- Hacker Report Modal -->
+    <div id="report-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Hacker Report</h2>
+            <p><strong>Timestamp:</strong> October 14, 2023, at 03:42 AM</p>
+            <p><strong>Attack Vector:</strong> Brute Force</p>
+            <p><strong>Attack Details:</strong> IP Address: 192.168.1.100 from an unknown location (e.g., Russia)</p>
+            <h3>Interactive Recovery Guide</h3>
+            <ul class="checklist">
+                <li><input type="checkbox" id="step1"> Reset Password</li>
+                <li><input type="checkbox" id="step2"> Enable 2FA</li>
+                <li><input type="checkbox" id="step3"> Clear Session Tokens</li>
+            </ul>
+            <button onclick="checkCompletion()">Complete Recovery</button>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal">
+        <div class="modal-content success">
+            <h2>Recovery Successful!</h2>
+            <p>Your account is now secure. 🎉</p>
+            <button onclick="resetToSecure()">Return to Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const loginSection = document.getElementById('login-section');
+        const dashboard = document.getElementById('dashboard');
+        const statusBtn = document.getElementById('status-btn');
+        const recoveryModal = document.getElementById('recovery-modal');
+        const reportModal = document.getElementById('report-modal');
+        const successModal = document.getElementById('success-modal');
+
+        // Login Simulation
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            loginSection.style.display = 'none';
+            dashboard.style.display = 'block';
+            // Randomly simulate safe or hacked (50/50 for demo)
+const isHacked = Math.random() > 0.5;
+            if (isHacked) {
+                statusBtn.textContent = 'Security Breach Detected';
+                statusBtn.className = 'status-btn breach';
+                statusBtn.onclick = () => recoveryModal.style.display = 'flex';
+            } else {
+                statusBtn.textContent = 'Account Secure';
+                statusBtn.className = 'status-btn secure';
+            }
+        });
+
+        // Modal Functions
+        function closeModal() {
+            recoveryModal.style.display = 'none';
+            reportModal.style.display = 'none';
+            successModal.style.display = 'none';
+        }
+
+        function startRecovery() {
+            recoveryModal.style.display = 'none';
+            reportModal.style.display = 'flex';
+        }
+
+        function checkCompletion() {
+            const steps = ['step1', 'step2', 'step3'];
+            const allChecked = steps.every(id => document.getElementById(id).checked);
+            if (allChecked) {
+                reportModal.style.display = 'none';
+                successModal.style.display = 'flex';
+            } else {
+                alert('Please complete all steps.');
+            }
+        }
+
+        function resetToSecure() {
+            successModal.style.display = 'none';
+            statusBtn.textContent = 'Account Secure';
+            statusBtn.className = 'status-btn secure';
+            statusBtn.onclick = null; // Remove click handler
+        }
+    </script>
+</body>
+</html>
