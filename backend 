@@ -1,0 +1,113 @@
+from flask import Flask, request, jsonify, render_template_string
+import pandas as pd
+import numpy as np
+import threading
+import os
+
+app = Flask(__name__)
+
+# ================== FAKE CLOUDFLARE LOGS ==================
+def generate_cloudflare_logs():
+    logs = []
+    users = ["admin", "user1", "user2"]
+    for _ in range(200):
+        logs.append({
+            "ip": f"203.0.113.{np.random.randint(1,255)}",
+            "user": np.random.choice(users),
+            "status": "FAILED" if np.random.random() < 0.2 else "SUCCESS"
+        })
+    return pd.DataFrame(logs)
+
+logs_df = generate_cloudflare_logs()
+
+# ================== FRONTEND ==================
+HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+<title>Secure Login</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body style="font-family:Arial;padding:20px">
+
+<h2>🔐 Login Page</h2>
+
+<input id="user" placeholder="Username" value="admin"><br><br>
+<input id="pwd" type="password" value="123"><br><br>
+<button onclick="login()">Login</button>
+
+<p id="msg"></p>
+<p id="reason"></p>
+<div id="chart"></div>
+
+<script>
+async function login(){
+    const res = await fetch("/login",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            username:document.getElementById("user").value,
+            password:document.getElementById("pwd").value
+        })
+    });
+    const data = await res.json();
+
+    document.getElementById("msg").innerHTML =
+        data.success ? "✅ Login Successful" : "❌ Invalid Login";
+
+    if(data.suspicious){
+        document.getElementById("reason").innerHTML =
+            "⚠️ Suspicious Activity: " + data.reason;
+        alert("ALERT: Suspicious login detected!");
+    }
+
+    Plotly.newPlot("chart",[{
+        x:Object.keys(data.ip_counts),
+        y:Object.values(data.ip_counts),
+        type:"bar"
+    }],{title:"Failed Login Attempts by IP"});
+}
+</script>
+
+</body>
+</html>
+"""
+
+# ================== ROUTES ==================
+@app.route("/")
+def home():
+    return render_template_string(HTML)
+
+@app.route("/login", methods=["POST"])
+def login():
+    global logs_df
+    data = request.json
+    user = data["username"]
+    pwd = data["password"]
+
+    valid = (user == "admin" and pwd == "123")
+
+    logs_df = pd.concat([logs_df, pd.DataFrame([{
+        "ip": "203.0.113.10",
+        "user": user,
+        "status": "SUCCESS" if valid else "FAILED"
+    }])])
+
+    failed = logs_df[logs_df["status"] == "FAILED"]
+    ip_counts = failed["ip"].value_counts()
+
+    suspicious = any(ip_counts >= 5)
+    reason = "Repeated failed logins from same IP (Brute-force attack)" if suspicious else ""
+
+    return jsonify({
+        "success": valid,
+        "suspicious": suspicious,
+        "reason": reason,
+        "ip_counts": ip_counts.to_dict()
+    })
+
+# ================== START FLASK ==================
+def run_flask():
+    app.run(port=5000)
+
+threading.Thread(target=run_flask).start()
