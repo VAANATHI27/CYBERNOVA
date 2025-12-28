@@ -1,0 +1,160 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
+from IPython.display import Audio, display
+import random
+
+# ==============================
+# Generate Dataset
+# ==============================
+np.random.seed(42)
+n = 1000
+
+login_attempts = np.random.randint(1, 10, n)
+failed_logins = np.random.randint(0, 6, n)
+failed_login_rate = failed_logins / login_attempts
+
+data_transfer_MB = np.random.randint(10, 1500, n)
+request_rate = np.random.randint(10, 500, n)
+access_time = np.random.randint(0, 24, n)
+session_time = np.random.randint(1, 180, n)  # minutes
+
+ip_reputation = np.random.choice([0, 1], n, p=[0.85, 0.15])
+geo_change = np.random.choice([0, 1], n, p=[0.9, 0.1])
+
+# Simulated IP & Location
+ip_addresses = [f"192.168.{random.randint(0,255)}.{random.randint(0,255)}" for _ in range(n)]
+locations = np.random.choice(
+    ["India", "USA", "Germany", "UK", "Singapore", "Unknown"],
+    n
+)
+
+# Threat ground truth
+threat = (
+    (failed_login_rate > 0.5) |
+    (data_transfer_MB > 1000) |
+    (request_rate > 300) |
+    (access_time < 5) |
+    (ip_reputation == 1) |
+    (geo_change == 1)
+).astype(int)
+
+df = pd.DataFrame({
+    "login_attempts": login_attempts,
+    "failed_login_rate": failed_login_rate,
+    "data_transfer_MB": data_transfer_MB,
+    "request_rate": request_rate,
+    "access_time": access_time,
+    "session_time_min": session_time,
+    "ip_address": ip_addresses,
+    "location": locations,
+    "ip_reputation": ip_reputation,
+    "geo_change": geo_change,
+    "actual_threat": threat
+})
+
+# ==============================
+# Train Model
+# ==============================
+X = df.drop(["actual_threat", "ip_address", "location"], axis=1)
+y = df["actual_threat"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+model = RandomForestClassifier(n_estimators=100)
+model.fit(X_train, y_train)
+
+print("Model Accuracy:", accuracy_score(y_test, model.predict(X_test)))
+
+# ==============================
+# Predict Threat
+# ==============================
+df["predicted_threat"] = model.predict(X)
+
+# ==============================
+# Severity & Reason
+# ==============================
+def get_threat_details(row):
+    reasons = []
+
+    if row["failed_login_rate"] > 0.5:
+        reasons.append("High failed login rate")
+    if row["data_transfer_MB"] > 1000:
+        reasons.append("Abnormal data transfer")
+    if row["request_rate"] > 300:
+        reasons.append("High request rate")
+    if row["access_time"] < 5:
+        reasons.append("Suspicious access time")
+    if row["ip_reputation"] == 1:
+        reasons.append("Bad IP reputation")
+    if row["geo_change"] == 1:
+        reasons.append("Sudden geo-location change")
+
+    count = len(reasons)
+
+    if count >= 3:
+        severity = "HIGH"
+    elif count == 2:
+        severity = "MEDIUM"
+    elif count == 1:
+        severity = "LOW"
+    else:
+        severity = "SAFE"
+
+    return severity, ", ".join(reasons)
+
+df[["threat_severity", "threat_reason"]] = df.apply(
+    lambda row: pd.Series(get_threat_details(row)), axis=1
+)
+
+# ==============================
+# Latest Login Attempt Output
+# ==============================
+latest_id = df.index[-1]
+latest = df.iloc[-1]
+
+print("\n🔍 LATEST LOGIN ATTEMPT DETAILS")
+print("----------------------------------")
+print("Login Attempt ID :", latest_id)
+print("IP Address       :", latest["ip_address"])
+print("Location         :", latest["location"])
+print("Session Time     :", latest["session_time_min"], "minutes")
+print("Threat Level     :", latest["threat_severity"])
+print("Reason           :", latest["threat_reason"])
+
+if latest["threat_severity"] == "HIGH":
+    print("\n🚨 HIGH THREAT ALERT!")
+    t = np.linspace(0, 1, 44100)
+    x = 0.5 * np.sin(2 * np.pi * 440 * t)
+    display(Audio(x, rate=44100, autoplay=True))
+else:
+    print("\n✅ No critical threat")
+
+print("\n✅ Detailed threat output generated.")
+
+
+#  Threat Severity Distribution
+severity_counts = df["threat_severity"].value_counts()
+
+plt.figure(figsize=(7,5))
+plt.bar(severity_counts.index, severity_counts.values)
+plt.title("Threat Severity Distribution")
+plt.xlabel("Threat Level")
+plt.ylabel("Number of Login Attempts")
+plt.show()
+
+
+# Safe vs Threat Distribution
+safe_count = (df["predicted_threat"] == 0).sum()
+threat_count = (df["predicted_threat"] == 1).sum()
+
+plt.figure(figsize=(6,4))
+plt.bar(["Safe", "Threat"], [safe_count, threat_count])
+plt.title("Safe vs Threat Login Attempts")
+plt.ylabel("Count")
+plt.show()
